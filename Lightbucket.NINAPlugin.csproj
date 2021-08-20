@@ -235,6 +235,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="SendToLightbucketTriggerTemplate.xaml.cs">
+      <DependentUpon>SendToLightbucketTriggerTemplate.xaml</DependentUpon>
+    </Compile>
     <Compile Include="SendToLightbucketTrigger.cs" />
     <Compile Include="Security.cs" />
     <Compile Include="Options.xaml.cs">
@@ -259,6 +262,10 @@
   </ItemGroup>
   <ItemGroup>
     <Page Include="Options.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SendToLightbucketTriggerTemplate.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
