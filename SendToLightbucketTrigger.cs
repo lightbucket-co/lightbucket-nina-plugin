@@ -162,10 +162,27 @@ namespace Lightbucket.NINAPlugin
 
             return false;
         }
+        public override void SequenceBlockInitialize()
+        {
+            EnsureFollowerClosed();
+            //platesolvingImageFollower = new PlatesolvingImageFollower(this.profileService, this.history, this.telescopeMediator, this.imageSaveMediator, this.applicationStatusMediator)
+            //{
+            //    AfterExposures = AfterExposures
+            //};
+            //platesolvingImageFollower.PropertyChanged += PlatesolvingImageFollower_PropertyChanged;
+        }
+
+        public override void SequenceBlockTeardown()
+        {
+            EnsureFollowerClosed();
+        }
 
         public override string ToString()
         {
             return $"Category: {Category}, Item: {nameof(SendToLightbucketTrigger)}";
+        }
+
+        private void EnsureFollowerClosed() { 
         }
 
         private async Task MakeAPIRequest(LightbucketPayload payload)
