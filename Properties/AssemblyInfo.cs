@@ -9,11 +9,18 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("Lightbucket")]
 [assembly: AssemblyDescription("Send session information to the Lightbucket API")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Lightbucket")]
 [assembly: AssemblyProduct("Lightbucket.NINAPlugin")]
 [assembly: AssemblyCopyright("Copyright ©  2021")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
+
+// The license your plugin code is using
+[assembly: AssemblyMetadata("License", "MPL-2.0")]
+// The url to the license
+[assembly: AssemblyMetadata("LicenseURL", "https://www.mozilla.org/en-US/MPL/2.0/")]
+// The repository where your plugin is hosted
+[assembly: AssemblyMetadata("Repository", "https://github.com/lightbucket-co/lightbucket-nina-plugin")]
 
 // Setting ComVisible to false makes the types in this assembly not visible
 // to COM components.  If you need to access a type in this assembly from
@@ -33,6 +40,6 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.1.2.0")]
-[assembly: AssemblyFileVersion("0.1.2.0")]
+[assembly: AssemblyVersion("0.1.4.0")]
+[assembly: AssemblyFileVersion("0.1.4.0")]
 [assembly: NeutralResourcesLanguage("en")]
