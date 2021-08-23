@@ -1,13 +1,6 @@
 ﻿using Newtonsoft.Json;
-using NINA.Astrometry;
-using NINA.Core.Enum;
-using NINA.Core.Model;
 using NINA.Core.Utility.Notification;
 using NINA.Core.Utility;
-using NINA.Sequencer.Container;
-using NINA.Sequencer.SequenceItem.Imaging;
-using NINA.Sequencer.SequenceItem;
-using NINA.Sequencer.Trigger;
 using NINA.WPF.Base.Interfaces.Mediator;
 using System.ComponentModel.Composition;
 using System.ComponentModel;
@@ -15,101 +8,39 @@ using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using System.Threading;
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
 using System;
 
-namespace Lightbucket.NINAPlugin
-{
-    [ExportMetadata("Name", "Send to Lightbucket")]
-    [ExportMetadata("Description", "This trigger will send a notification to Lightbucket any time an image capture is completed.")]
-    [ExportMetadata("Icon", "StarSVG")]
-    [ExportMetadata("Category", "Lightbucket")]
-    [Export(typeof(ISequenceTrigger))]
-    [JsonObject(MemberSerialization.OptIn)]
-    public class SendToLightbucketTrigger : SequenceTrigger
+namespace Lightbucket.NINAPlugin { 
+    public class SendToLightbucketWatcher
     {
         private HttpClient httpClient = new HttpClient();
         private IImageSaveMediator imageSaveMediator;
         private string LightbucketAPIBaseURL;
         private string LightbucketUsername;
         private string LightbucketAPIKey;
-
-        [ImportingConstructor]
-        public SendToLightbucketTrigger(IImageSaveMediator imageSaveMediator)
+        private bool LightbucketEnabled;
+        public SendToLightbucketWatcher(IImageSaveMediator imageSaveMediator)
         {
             this.imageSaveMediator = imageSaveMediator;
             LightbucketAPIBaseURL = $"{Properties.Settings.Default.LightbucketBaseURL}/api";
             LightbucketUsername = Properties.Settings.Default.LightbucketUsername;
             LightbucketAPIKey = Security.Decrypt(Properties.Settings.Default.LightbucketAPIKey);
+            LightbucketEnabled = Properties.Settings.Default.LightbucketEnabled;
 
             Properties.Settings.Default.PropertyChanged += SettingsChanged;
-        }
-
-        public override object Clone()
-        {
-            return new SendToLightbucketTrigger(imageSaveMediator)
-            {
-                Icon = Icon,
-                Name = Name,
-                Category = Category,
-                Description = Description
-            };
-        }
-
-        public override Task Execute(ISequenceContainer context, IProgress<ApplicationStatus> progress, CancellationToken token)
-        {
-            return Task.CompletedTask;
-        }
-
-        public override bool ShouldTrigger(ISequenceItem previousItem, ISequenceItem nextItem)
-        {
-            return false;
-        }
-
-        public override bool ShouldTriggerAfter(ISequenceItem previousItem, ISequenceItem nextItem)
-        {
-            bool isFinishedExposure = previousItem?.GetType().Name == "TakeExposure" &&
-                                      previousItem?.Status == SequenceEntityStatus.FINISHED;
-
-            if (!isFinishedExposure) { return false; }
-
-            try
-            {
-                TakeExposure exposureItem = (TakeExposure)previousItem;
-
-                if (exposureItem.ImageType == "LIGHT")
-                {
-                    return true;
-                }
-            }
-            catch (InvalidCastException)
-            {
-                Logger.Trace($"{this}: Something went wrong casting to exposure item. previousItem was a {previousItem.GetType().Name}");
-                return false;
-            }
-
-            return false;
+            imageSaveMediator.ImageSaved += ImageSaveMeditator_ImageSaved;
         }
 
         public override string ToString()
         {
-            return $"Category: {Category}, Item: {nameof(SendToLightbucketTrigger)}";
-        }
-
-        public override void SequenceBlockInitialize()
-        {
-            imageSaveMediator.ImageSaved += ImageSaveMeditator_ImageSaved;
-        }
-
-        public override void SequenceBlockTeardown()
-        {
-            imageSaveMediator.ImageSaved -= ImageSaveMeditator_ImageSaved;
+            return $"Category: Lightbucket, Item: {nameof(SendToLightbucketWatcher)}";
         }
 
         private async void ImageSaveMeditator_ImageSaved(object sender, ImageSavedEventArgs msg)
         {
+            if (!LightbucketEnabled) { return; }
             if (msg.MetaData.Image.ImageType != "LIGHT") { return; }
 
             EquipmentPayload equipmentPayload = new EquipmentPayload
@@ -211,6 +142,9 @@ namespace Lightbucket.NINAPlugin
                     break;
                 case "LightbucketAPIKey":
                     LightbucketAPIKey = Security.Decrypt(Properties.Settings.Default.LightbucketAPIKey);
+                    break;
+                case "LightbucketEnabled":
+                    LightbucketEnabled = Properties.Settings.Default.LightbucketEnabled;
                     break;
             }
         }

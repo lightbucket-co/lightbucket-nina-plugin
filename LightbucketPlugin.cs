@@ -1,6 +1,7 @@
 ﻿using Lightbucket.NINAPlugin.Properties;
 using NINA.Plugin;
 using NINA.Plugin.Interfaces;
+using NINA.WPF.Base.Interfaces.Mediator;
 using System.ComponentModel.Composition;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -18,9 +19,10 @@ namespace Lightbucket.NINAPlugin
     [Export(typeof(IPluginManifest))]
     public class LightbucketPlugin : PluginBase, INotifyPropertyChanged
     {
+        SendToLightbucketWatcher watcher;
 
         [ImportingConstructor]
-        public LightbucketPlugin()
+        public LightbucketPlugin(IImageSaveMediator imageSaveMediator)
         {
             if (Settings.Default.UpdateSettings)
             {
@@ -28,6 +30,8 @@ namespace Lightbucket.NINAPlugin
                 Settings.Default.UpdateSettings = false;
                 Settings.Default.Save();
             }
+
+            this.watcher = new SendToLightbucketWatcher(imageSaveMediator);
         }
 
         public string LightbucketUsername
@@ -57,6 +61,17 @@ namespace Lightbucket.NINAPlugin
         public string LightbucketAPICredentialsURL
         {
             get => $"{Settings.Default.LightbucketBaseURL}/api_credentials";
+        }
+
+        public bool LightbucketEnabled
+        {
+            get => Settings.Default.LightbucketEnabled;
+            set 
+            {
+                Settings.Default.LightbucketEnabled = value;
+                Settings.Default.Save();
+                RaisePropertyChanged();
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

@@ -21,6 +21,20 @@
                     VerticalAlignment="Center"
                     HorizontalAlignment="Right"
                     Width="110">
+                    <TextBlock.Text>Enabled</TextBlock.Text>
+                    <TextBlock.ToolTip>When the Lightbucket plugin is enabled, data from all LIGHT frames will be sent to Lightbucket.  If you don't want to track a sequence, set this to Off.S</TextBlock.ToolTip>
+                </TextBlock>
+                <CheckBox
+                    MinWidth="40"
+                    Margin="5,0,0,0"
+                    VerticalAlignment="Center"
+                    IsChecked="{Binding LightbucketEnabled}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                <TextBlock
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Right"
+                    Width="110">
                     <TextBlock.Text>Username</TextBlock.Text>
                     <TextBlock.ToolTip>Your Lightbucket username</TextBlock.ToolTip>
                 </TextBlock>

@@ -61,13 +61,25 @@ namespace Lightbucket.NINAPlugin.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("https://staging.lightbucket.co")]
+        [global::System.Configuration.DefaultSettingValueAttribute("https://app.lightbucket.co")]
         public string LightbucketBaseURL {
             get {
                 return ((string)(this["LightbucketBaseURL"]));
             }
             set {
                 this["LightbucketBaseURL"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool LightbucketEnabled {
+            get {
+                return ((bool)(this["LightbucketEnabled"]));
+            }
+            set {
+                this["LightbucketEnabled"] = value;
             }
         }
     }

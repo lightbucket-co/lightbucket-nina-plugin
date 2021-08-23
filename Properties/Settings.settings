@@ -12,7 +12,10 @@
       <Value Profile="(Default)">True</Value>
     </Setting>
     <Setting Name="LightbucketBaseURL" Type="System.String" Scope="User">
-      <Value Profile="(Default)">https://staging.lightbucket.co</Value>
+      <Value Profile="(Default)">https://app.lightbucket.co</Value>
+    </Setting>
+    <Setting Name="LightbucketEnabled" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
     </Setting>
   </Settings>
 </SettingsFile>
