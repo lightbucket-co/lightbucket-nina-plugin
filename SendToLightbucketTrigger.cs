@@ -1,22 +1,24 @@
 ﻿using Newtonsoft.Json;
 using NINA.Astrometry;
-using NINA.Core.Model;
 using NINA.Core.Enum;
-using NINA.Core.Utility;
+using NINA.Core.Model;
 using NINA.Core.Utility.Notification;
-using NINA.Profile.Interfaces;
-using NINA.Equipment.Interfaces.Mediator;
+using NINA.Core.Utility;
 using NINA.Sequencer.Container;
+using NINA.Sequencer.SequenceItem.Imaging;
 using NINA.Sequencer.SequenceItem;
 using NINA.Sequencer.Trigger;
-using NINA.Sequencer.SequenceItem.Imaging;
-using System;
+using NINA.WPF.Base.Interfaces.Mediator;
 using System.ComponentModel.Composition;
+using System.ComponentModel;
+using System.IO;
 using System.Net.Http;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using System.ComponentModel;
+using System.Threading;
+using System.Windows.Media.Imaging;
+using System.Windows.Media;
+using System;
 
 namespace Lightbucket.NINAPlugin
 {
@@ -29,24 +31,15 @@ namespace Lightbucket.NINAPlugin
     public class SendToLightbucketTrigger : SequenceTrigger
     {
         private HttpClient httpClient = new HttpClient();
-        private TakeExposure lastExposureItem;
-        private IProfileService profileService;
-        private ICameraMediator cameraMediator;
-        private IFilterWheelMediator filterWheelMediator;
+        private IImageSaveMediator imageSaveMediator;
         private string LightbucketAPIBaseURL;
         private string LightbucketUsername;
         private string LightbucketAPIKey;
 
         [ImportingConstructor]
-        public SendToLightbucketTrigger(
-            IProfileService profileService,
-            ICameraMediator cameraMediator,
-            IFilterWheelMediator filterWheelMediator
-        )
+        public SendToLightbucketTrigger(IImageSaveMediator imageSaveMediator)
         {
-            this.profileService = profileService;
-            this.cameraMediator = cameraMediator;
-            this.filterWheelMediator = filterWheelMediator;
+            this.imageSaveMediator = imageSaveMediator;
             LightbucketAPIBaseURL = $"{Properties.Settings.Default.LightbucketBaseURL}/api";
             LightbucketUsername = Properties.Settings.Default.LightbucketUsername;
             LightbucketAPIKey = Security.Decrypt(Properties.Settings.Default.LightbucketAPIKey);
@@ -56,7 +49,7 @@ namespace Lightbucket.NINAPlugin
 
         public override object Clone()
         {
-            return new SendToLightbucketTrigger(profileService, cameraMediator, filterWheelMediator)
+            return new SendToLightbucketTrigger(imageSaveMediator)
             {
                 Icon = Icon,
                 Name = Name,
@@ -65,71 +58,9 @@ namespace Lightbucket.NINAPlugin
             };
         }
 
-        public override async Task Execute(ISequenceContainer context, IProgress<ApplicationStatus> progress, CancellationToken token)
+        public override Task Execute(ISequenceContainer context, IProgress<ApplicationStatus> progress, CancellationToken token)
         {
-            try
-            {
-                // 1. Get Target
-                // 2. Get Equipment Info
-                // 3. Get Image Info
-                DeepSkyObject targetContainer = FindDsoInfo(lastExposureItem.Parent);
-
-                if (targetContainer == null)
-                {
-                    Logger.Warning($"{this}: Could not identify target.  Skipping.");
-                    return;
-                }
-
-                var targetPayload = new TargetPayload
-                {
-                    name = targetContainer.Name,
-                    ra = targetContainer.Coordinates.RADegrees,
-                    dec = targetContainer.Coordinates.Dec,
-                    rotation = targetContainer.Rotation
-                };
-
-                var equipmentPayload = new EquipmentPayload
-                {
-                    camera_name = cameraMediator.GetInfo().Name,
-                    telescope_name = profileService.ActiveProfile.TelescopeSettings.Name
-                };
-
-                var gain = lastExposureItem.Gain;
-                if (gain == -1)
-                {
-                    gain = cameraMediator.GetInfo().Gain;
-                }
-
-                var offset = lastExposureItem.Offset;
-                if (offset == -1)
-                {
-                    offset = cameraMediator.GetInfo().Offset;
-                }
-
-                var imagePayload = new ImagePayload
-                {
-                    filter_name = filterWheelMediator?.GetInfo()?.SelectedFilter?.Name,
-                    duration = lastExposureItem.ExposureTime,
-                    gain = gain,
-                    offset = offset,
-                    binning = lastExposureItem.Binning?.ToString(),
-                    captured_at = DateTime.UtcNow
-                };
-
-                var payload = new LightbucketPayload
-                {
-                    target = targetPayload,
-                    equipment = equipmentPayload,
-                    image = imagePayload
-                };
-
-
-                await MakeAPIRequest(payload);
-            }
-            finally
-            {
-                lastExposureItem = null;
-            }
+            return Task.CompletedTask;
         }
 
         public override bool ShouldTrigger(ISequenceItem previousItem, ISequenceItem nextItem)
@@ -150,10 +81,10 @@ namespace Lightbucket.NINAPlugin
 
                 if (exposureItem.ImageType == "LIGHT")
                 {
-                    lastExposureItem = exposureItem;
                     return true;
                 }
-            } catch (InvalidCastException)
+            }
+            catch (InvalidCastException)
             {
                 Logger.Trace($"{this}: Something went wrong casting to exposure item. previousItem was a {previousItem.GetType().Name}");
                 return false;
@@ -167,6 +98,74 @@ namespace Lightbucket.NINAPlugin
             return $"Category: {Category}, Item: {nameof(SendToLightbucketTrigger)}";
         }
 
+        public override void SequenceBlockInitialize()
+        {
+            imageSaveMediator.ImageSaved += ImageSaveMeditator_ImageSaved;
+        }
+
+        public override void SequenceBlockTeardown()
+        {
+            imageSaveMediator.ImageSaved -= ImageSaveMeditator_ImageSaved;
+        }
+
+        private async void ImageSaveMeditator_ImageSaved(object sender, ImageSavedEventArgs msg)
+        {
+            if (msg.MetaData.Image.ImageType != "LIGHT") { return; }
+
+            EquipmentPayload equipmentPayload = new EquipmentPayload
+            {
+                camera_name = msg.MetaData.Camera.Name,
+                telescope_name = msg.MetaData.Telescope.Name
+            };
+
+            TargetPayload targetPayload = new TargetPayload
+            {
+                name = msg.MetaData.Target.Name,
+                ra = msg.MetaData.Target.Coordinates.RADegrees,
+                dec = msg.MetaData.Target.Coordinates.Dec,
+                rotation = msg.MetaData.Target.Rotation
+            };
+
+            ImagePayload imagePayload = new ImagePayload
+            {
+                filter_name = msg.Filter,
+                duration = msg.Duration,
+                gain = msg.MetaData.Camera.Gain,
+                offset = msg.MetaData.Camera.Offset,
+                binning = msg.MetaData.Image.Binning?.ToString(),
+                captured_at = DateTime.UtcNow,
+                rms = msg.MetaData.Image.RecordedRMS.Total,
+                thumbnail = CreateBase64Thumbnail(msg.Image)
+            };
+
+            LightbucketPayload payload = new LightbucketPayload
+            {
+                target = targetPayload,
+                equipment = equipmentPayload,
+                image = imagePayload
+            };
+
+            await MakeAPIRequest(payload);
+        }
+
+        private static string CreateBase64Thumbnail(BitmapSource source)
+        {
+            byte[] data = null;
+            double scaleFactor = 300 / source.Width;
+            BitmapSource resizedBitmap = new TransformedBitmap(source, new ScaleTransform(scaleFactor, scaleFactor));
+            JpegBitmapEncoder encoder = new JpegBitmapEncoder();
+            encoder.QualityLevel = 70;
+            encoder.Frames.Add(BitmapFrame.Create(resizedBitmap));
+
+            using (var ms = new MemoryStream())
+            {
+                encoder.Save(ms);
+                ms.Seek(0, SeekOrigin.Begin);
+                data = ms.ToArray();
+            }
+
+            return Convert.ToBase64String(data);
+        }
         private async Task MakeAPIRequest(LightbucketPayload payload)
         {
             string jsonPayload = JsonConvert.SerializeObject(payload);
@@ -203,24 +202,6 @@ namespace Lightbucket.NINAPlugin
             }
         }
 
-        private DeepSkyObject FindDsoInfo(ISequenceContainer container)
-        {
-            DeepSkyObject target = null;
-            ISequenceContainer acontainer = container;
-
-            while (acontainer != null)
-            {
-                if (acontainer is IDeepSkyObjectContainer dsoContainer)
-                {
-                    target = dsoContainer.Target.DeepSkyObject;
-                    break;
-                }
-
-                acontainer = acontainer.Parent;
-            }
-
-            return target;
-        }
         void SettingsChanged(object sender, PropertyChangedEventArgs e)
         {
             switch (e.PropertyName)
@@ -234,7 +215,8 @@ namespace Lightbucket.NINAPlugin
             }
         }
 
-        private class LightbucketPayload {
+        private class LightbucketPayload
+        {
             public TargetPayload target { get; set; }
             public EquipmentPayload equipment { get; set; }
             public ImagePayload image { get; set; }
@@ -262,6 +244,8 @@ namespace Lightbucket.NINAPlugin
             public double duration { get; set; }
             public string binning { get; set; }
             public DateTime captured_at { get; set; }
+            public double rms { get; set; }
+            public string thumbnail { get; set; }
         }
     }
 }

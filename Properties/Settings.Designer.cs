@@ -61,7 +61,7 @@ namespace Lightbucket.NINAPlugin.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("https://app.lightbucket.co")]
+        [global::System.Configuration.DefaultSettingValueAttribute("https://staging.lightbucket.co")]
         public string LightbucketBaseURL {
             get {
                 return ((string)(this["LightbucketBaseURL"]));
