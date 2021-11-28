@@ -58,6 +58,11 @@ namespace Lightbucket.NINAPlugin
             }
         }
 
+        public string LightbucketBaseURL
+        {
+            get => Settings.Default.LightbucketBaseURL;
+        }
+
         public string LightbucketAPICredentialsURL
         {
             get => $"{Settings.Default.LightbucketBaseURL}/api_credentials";

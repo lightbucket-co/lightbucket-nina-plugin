@@ -31,6 +31,7 @@ namespace Lightbucket.NINAPlugin {
 
             Properties.Settings.Default.PropertyChanged += SettingsChanged;
             imageSaveMediator.ImageSaved += ImageSaveMeditator_ImageSaved;
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
         }
 
         public override string ToString()
@@ -40,13 +41,18 @@ namespace Lightbucket.NINAPlugin {
 
         private async void ImageSaveMeditator_ImageSaved(object sender, ImageSavedEventArgs msg)
         {
-            if (!LightbucketEnabled) { return; }
+            if (!LightbucketEnabled || LightbucketAPIKey.Length == 0 || LightbucketUsername.Length == 0) { return; }
             if (msg.MetaData.Image.ImageType != "LIGHT") { return; }
+            if (msg.MetaData.Target.Name.Length == 0 || msg.MetaData.Target.Coordinates == null)
+            {
+                Logger.Info($"{this} Image is not attached to a target with a name and coordinates. Skipping.");
+                return;
+            }
 
             EquipmentPayload equipmentPayload = new EquipmentPayload
             {
-                camera_name = msg.MetaData.Camera.Name,
-                telescope_name = msg.MetaData.Telescope.Name
+                camera_name = msg.MetaData.Camera?.Name,
+                telescope_name = msg.MetaData.Telescope?.Name
             };
 
             TargetPayload targetPayload = new TargetPayload
@@ -57,6 +63,14 @@ namespace Lightbucket.NINAPlugin {
                 rotation = msg.MetaData.Target.Rotation
             };
 
+            ImageStatisticsPayload statisticsPayload = new ImageStatisticsPayload
+            {
+                hfr = msg.StarDetectionAnalysis.HFR,
+                stars = msg.StarDetectionAnalysis.DetectedStars,
+                mean = msg.Statistics.Mean,
+                median = msg.Statistics.Median
+            };
+
             ImagePayload imagePayload = new ImagePayload
             {
                 filter_name = msg.Filter,
@@ -65,9 +79,16 @@ namespace Lightbucket.NINAPlugin {
                 offset = msg.MetaData.Camera.Offset,
                 binning = msg.MetaData.Image.Binning?.ToString(),
                 captured_at = DateTime.UtcNow,
-                rms = msg.MetaData.Image.RecordedRMS.Total,
-                thumbnail = CreateBase64Thumbnail(msg.Image)
+                thumbnail = CreateBase64Thumbnail(msg.Image),
+                statistics = statisticsPayload
             };
+
+            if (msg.MetaData.Image.RecordedRMS != null)
+            {
+                var rms = Math.Round(msg.MetaData.Image.RecordedRMS.Total * msg.MetaData.Image.RecordedRMS.Scale, 2);
+                imagePayload.rms = rms;
+                statisticsPayload.rms = rms;
+            }
 
             LightbucketPayload payload = new LightbucketPayload
             {
@@ -79,23 +100,30 @@ namespace Lightbucket.NINAPlugin {
             await MakeAPIRequest(payload);
         }
 
-        private static string CreateBase64Thumbnail(BitmapSource source)
+        private string CreateBase64Thumbnail(BitmapSource source)
         {
-            byte[] data = null;
-            double scaleFactor = 300 / source.Width;
-            BitmapSource resizedBitmap = new TransformedBitmap(source, new ScaleTransform(scaleFactor, scaleFactor));
-            JpegBitmapEncoder encoder = new JpegBitmapEncoder();
-            encoder.QualityLevel = 70;
-            encoder.Frames.Add(BitmapFrame.Create(resizedBitmap));
-
-            using (var ms = new MemoryStream())
+            try
             {
-                encoder.Save(ms);
-                ms.Seek(0, SeekOrigin.Begin);
-                data = ms.ToArray();
-            }
+                byte[] data = null;
+                double scaleFactor = 300 / source.Width;
+                BitmapSource resizedBitmap = new TransformedBitmap(source, new ScaleTransform(scaleFactor, scaleFactor));
+                JpegBitmapEncoder encoder = new JpegBitmapEncoder();
+                encoder.QualityLevel = 70;
+                encoder.Frames.Add(BitmapFrame.Create(resizedBitmap));
 
-            return Convert.ToBase64String(data);
+                using (var ms = new MemoryStream())
+                {
+                    encoder.Save(ms);
+                    ms.Seek(0, SeekOrigin.Begin);
+                    data = ms.ToArray();
+                }
+
+                return Convert.ToBase64String(data);
+            } catch (Exception e)
+            {
+                Logger.Error($"{this}: Error creating thumbnail: {e.Message}");
+                return null;
+            }
         }
         private async Task MakeAPIRequest(LightbucketPayload payload)
         {
@@ -130,6 +158,11 @@ namespace Lightbucket.NINAPlugin {
             {
                 Notification.ShowError($"{this}: {e.InnerException.Message}");
                 Logger.Warning($"{this}: {e.InnerException.Message}");
+            }
+            catch (TaskCanceledException e)
+            {
+                Notification.ShowError($"{this}: Lightbucket request timed out!");
+                Logger.Warning($"{this}: Lightbucket request timed out! {e.Message}");
             }
         }
 
@@ -170,6 +203,14 @@ namespace Lightbucket.NINAPlugin {
             public string telescope_name { get; set; }
         }
 
+        private class ImageStatisticsPayload
+        {
+            public double hfr { get; set; }
+            public int stars { get; set; }
+            public double mean { get; set; }
+            public double median { get; set; }
+            public double rms { get; set; }
+        }
         private class ImagePayload
         {
             public string filter_name { get; set; }
@@ -180,6 +221,8 @@ namespace Lightbucket.NINAPlugin {
             public DateTime captured_at { get; set; }
             public double rms { get; set; }
             public string thumbnail { get; set; }
+
+            public ImageStatisticsPayload statistics { get; set; }
         }
     }
 }
