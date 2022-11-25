@@ -14,7 +14,7 @@ namespace Lightbucket.NINAPlugin
         }
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {
-            _ = Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri));
+            _ = Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
             e.Handled = true;
         }
     }
