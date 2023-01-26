@@ -15,6 +15,8 @@ using System;
 namespace Lightbucket.NINAPlugin { 
     public class SendToLightbucketWatcher
     {
+        private const int maxRetries = 5;
+
         private HttpClient httpClient = new HttpClient();
         private IImageSaveMediator imageSaveMediator;
         private string LightbucketAPIBaseURL;
@@ -49,10 +51,18 @@ namespace Lightbucket.NINAPlugin {
                 return;
             }
 
+            double msgPixelSize = msg.MetaData.Camera.PixelSize;
+            double msgFocalLength = msg.MetaData.Telescope.FocalLength;
+            double calculatedPixelScale = msgFocalLength > 0 ? (msgPixelSize / msgFocalLength) * 206.26 : 0;
+
             EquipmentPayload equipmentPayload = new EquipmentPayload
             {
                 camera_name = msg.MetaData.Camera?.Name,
-                telescope_name = msg.MetaData.Telescope?.Name
+                telescope_name = msg.MetaData.Telescope?.Name,
+                focal_length = msgFocalLength,
+                focal_ratio = msg.MetaData.Telescope?.FocalRatio,
+                pixel_size = msgPixelSize,
+                pixel_scale = calculatedPixelScale
             };
 
             TargetPayload targetPayload = new TargetPayload
@@ -125,7 +135,7 @@ namespace Lightbucket.NINAPlugin {
                 return null;
             }
         }
-        private async Task MakeAPIRequest(LightbucketPayload payload)
+        private async Task MakeAPIRequest(LightbucketPayload payload, int retryCount = 0)
         {
             string jsonPayload = JsonConvert.SerializeObject(payload);
             Logger.Trace($"{this}: Making API request to {LightbucketAPIBaseURL}/image_capture_complete with payload: {jsonPayload}");
@@ -158,6 +168,12 @@ namespace Lightbucket.NINAPlugin {
             {
                 Notification.ShowError($"{this}: {e.InnerException.Message}");
                 Logger.Warning($"{this}: {e.InnerException.Message}");
+
+                // Retry failures since they could be sporadic networking issues.
+                if (retryCount < maxRetries)
+                {
+                    _ = MakeAPIRequest(payload, retryCount + 1);
+                }
             }
             catch (TaskCanceledException e)
             {
@@ -201,6 +217,10 @@ namespace Lightbucket.NINAPlugin {
         {
             public string camera_name { get; set; }
             public string telescope_name { get; set; }
+            public double? focal_length { get; set; }
+            public double? focal_ratio { get; set; }
+            public double? pixel_size { get; set; }
+            public double? pixel_scale { get; set; }
         }
 
         private class ImageStatisticsPayload
