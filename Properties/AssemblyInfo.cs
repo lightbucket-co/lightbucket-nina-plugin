@@ -17,7 +17,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("Homepage", "https://app.lightbucket.co")]
 
 // The minimum Version of N.I.N.A. that this plugin is compatible with
-[assembly: AssemblyMetadata("MinimumApplicationVersion", "3.0.0.0")]
+[assembly: AssemblyMetadata("MinimumApplicationVersion", "3.0.0.1022")]
 
 // The license your plugin code is using
 [assembly: AssemblyMetadata("License", "MPL-2.0")]
@@ -61,6 +61,6 @@ This logging is automatically enabled and can be toggled on or off using the Ena
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("2.1.0.0")]
-[assembly: AssemblyFileVersion("2.1.0.0")]
+[assembly: AssemblyVersion("2.2.0.0")]
+[assembly: AssemblyFileVersion("2.2.0.0")]
 [assembly: NeutralResourcesLanguage("en")]

@@ -79,6 +79,17 @@ namespace Lightbucket.NINAPlugin
             }
         }
 
+        public bool LightbucketOfflineOnly
+        {
+            get => Settings.Default.LightbucketOfflineOnly;
+            set
+            {
+                Settings.Default.LightbucketOfflineOnly = value;
+                Settings.Default.Save();
+                RaisePropertyChanged();
+            }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected void RaisePropertyChanged([CallerMemberName] string propertyName = null)

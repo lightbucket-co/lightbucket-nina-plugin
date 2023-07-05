@@ -22,7 +22,7 @@
                     HorizontalAlignment="Right"
                     Width="110">
                     <TextBlock.Text>Enabled</TextBlock.Text>
-                    <TextBlock.ToolTip>When the Lightbucket plugin is enabled, data from all LIGHT frames will be sent to Lightbucket.  If you don't want to track a sequence, set this to Off.S</TextBlock.ToolTip>
+                    <TextBlock.ToolTip>When the Lightbucket plugin is enabled, data from all LIGHT frames will be sent to Lightbucket.  If you don't want to track a sequence, set this to Off.</TextBlock.ToolTip>
                 </TextBlock>
                 <CheckBox
                     MinWidth="40"
@@ -65,6 +65,26 @@
                         <Binding Path="LightbucketAPIKey" />
                     </TextBox.Text>
                 </TextBox>
+            </StackPanel>
+            <TextBlock VerticalAlignment="Center" Margin="0,15,0,15" TextWrapping="Wrap">
+                When Lightbucket is enabled, it will store session logs for each target in %LOCALAPPDATA%/NINA/Lightbucket.  These
+                logs can be manually uploaded to recover from intermittent internet issues or to log sessions at a remote site without
+                internet.  If you would like to disable the automatic logging of each image via the Lightbucket API, you can turn on
+                "Offline Mode" below.
+            </TextBlock>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                <TextBlock
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Right"
+                    Width="110">
+                    <TextBlock.Text>Offline Mode</TextBlock.Text>
+                    <TextBlock.ToolTip>For observatories without an internet connection or a spotty connection, this setting will ONLY write session data to a JSONL file for manual upload later.</TextBlock.ToolTip>
+                </TextBlock>
+                <CheckBox
+                    MinWidth="40"
+                    Margin="5,0,0,0"
+                    VerticalAlignment="Center"
+                    IsChecked="{Binding LightbucketOfflineOnly}" />
             </StackPanel>
         </StackPanel>
     </DataTemplate>

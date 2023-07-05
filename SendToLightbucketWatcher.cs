@@ -2,7 +2,6 @@
 using NINA.Core.Utility.Notification;
 using NINA.Core.Utility;
 using NINA.WPF.Base.Interfaces.Mediator;
-using System.ComponentModel.Composition;
 using System.ComponentModel;
 using System.IO;
 using System.Net.Http;
@@ -21,6 +20,9 @@ namespace Lightbucket.NINAPlugin {
         private string LightbucketUsername;
         private string LightbucketAPIKey;
         private bool LightbucketEnabled;
+        private bool LightbucketOfflineOnly;
+
+        public static readonly string LightbucketDirectory = Path.Combine(CoreUtil.APPLICATIONTEMPPATH, "Lightbucket");
         public SendToLightbucketWatcher(IImageSaveMediator imageSaveMediator)
         {
             this.imageSaveMediator = imageSaveMediator;
@@ -28,6 +30,7 @@ namespace Lightbucket.NINAPlugin {
             LightbucketUsername = Properties.Settings.Default.LightbucketUsername;
             LightbucketAPIKey = Security.Decrypt(Properties.Settings.Default.LightbucketAPIKey);
             LightbucketEnabled = Properties.Settings.Default.LightbucketEnabled;
+            LightbucketOfflineOnly = Properties.Settings.Default.LightbucketOfflineOnly;
 
             Properties.Settings.Default.PropertyChanged += SettingsChanged;
             imageSaveMediator.ImageSaved += ImageSaveMeditator_ImageSaved;
@@ -60,13 +63,13 @@ namespace Lightbucket.NINAPlugin {
                 name = msg.MetaData.Target.Name,
                 ra = msg.MetaData.Target.Coordinates.RADegrees,
                 dec = msg.MetaData.Target.Coordinates.Dec,
-                rotation = msg.MetaData.Target.Rotation
+                rotation = msg.MetaData.Target.PositionAngle
             };
 
             ImageStatisticsPayload statisticsPayload = new ImageStatisticsPayload
             {
-                hfr = msg.StarDetectionAnalysis.HFR,
-                stars = msg.StarDetectionAnalysis.DetectedStars,
+                hfr = msg.StarDetectionAnalysis?.HFR ?? 0,
+                stars = msg.StarDetectionAnalysis?.DetectedStars ?? 0,
                 mean = msg.Statistics.Mean,
                 median = msg.Statistics.Median
             };
@@ -97,6 +100,7 @@ namespace Lightbucket.NINAPlugin {
                 image = imagePayload
             };
 
+            await WriteToFile(payload);
             await MakeAPIRequest(payload);
         }
 
@@ -125,8 +129,26 @@ namespace Lightbucket.NINAPlugin {
                 return null;
             }
         }
+
+        private async Task WriteToFile(LightbucketPayload payload)
+        {
+            if (!Directory.Exists(LightbucketDirectory))
+            {
+                Directory.CreateDirectory(LightbucketDirectory);
+            }
+            else
+            {
+                CoreUtil.DirectoryCleanup(LightbucketDirectory, TimeSpan.FromDays(-180));
+            }
+
+            string jsonPayload = JsonConvert.SerializeObject(payload);
+            string path = Path.Combine(LightbucketDirectory, payload.target.name + ".jsonl");
+            await File.AppendAllTextAsync(path, jsonPayload + Environment.NewLine);
+        }
         private async Task MakeAPIRequest(LightbucketPayload payload)
         {
+            if (LightbucketOfflineOnly) { return; }
+
             string jsonPayload = JsonConvert.SerializeObject(payload);
             Logger.Trace($"{this}: Making API request to {LightbucketAPIBaseURL}/image_capture_complete with payload: {jsonPayload}");
 
